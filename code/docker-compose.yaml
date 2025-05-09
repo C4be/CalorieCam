@@ -1,0 +1,103 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: caloriecam-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    restart: unless-stopped
+    networks:
+      - caloriecam_network
+
+  postgres:
+    image: postgres:latest
+    container_name: caloriecam-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=caloriecam
+    restart: unless-stopped
+    networks:
+      - caloriecam_network
+
+  neural-network-service:
+    build:
+      context: ./NeuralNetworkService/src
+      dockerfile: Dockerfile
+    container_name: caloriecam-nn-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./NeuralNetworkService/src/resources:/app/resources
+    environment:
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USER=admin
+      - MONGO_PASSWORD=password
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    networks:
+      - caloriecam_network
+
+  dishes-service:
+    build:
+      context: ./DishesService/src
+      dockerfile: Dockerfile
+    container_name: caloriecam-dishes-service
+    ports:
+      - "8001:8001"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=caloriecam
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USER=admin
+      - MONGO_PASSWORD=password
+      - NEURAL_NETWORK_SERVICE_URL=http://neural-network-service:8000/nn/predict
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - mongodb
+      - neural-network-service
+    networks:
+      - caloriecam_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: caloriecam-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8001  # Убедитесь, что это правильный URL
+      # - VITE_API_URL=http://dishes-service:8001
+    restart: unless-stopped
+    depends_on:
+      - dishes-service
+    networks:
+      - caloriecam_network
+
+volumes:
+  mongodb_data:
+  postgres_data:
+
+networks:
+  caloriecam_network:
+    driver: bridge

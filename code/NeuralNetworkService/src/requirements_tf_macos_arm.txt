@@ -1,0 +1,6 @@
+# Neural Network For MacOS (Apple Silicon)
+tensorflow
+tensorflow-macos
+tensorflow-metal
+numpy==2.0.2
+pillow

@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+sqlalchemy
+pymongo
+httpx
+psycopg2
